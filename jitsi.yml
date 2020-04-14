@@ -1,0 +1,88 @@
+---
+- name: jitsi
+  hosts: "{{ target }}"
+  gather_facts: true
+  become: true
+  tasks:
+
+    - name: Set container_command = docker for rhel7/debian
+      set_fact:
+        container_command: docker
+      when:
+        - (ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7") or ansible_os_family == 'Debian'
+
+    - name: EPEL for RPM-Based Machines
+      package:
+        name: epel-release
+        state: present
+      when:
+        - ansible_os_family == 'RedHat'
+
+    - name: Install Required Packages
+      package:
+        name:
+          - git
+          - docker-compose
+          - "{% if ansible_os_family == 'RedHat' %}{{ container_command }}{% elif ansible_os_family == 'Debian' %}docker.io{% endif %}"
+        state: present
+
+    - name: Docker Service
+      systemd:
+        name: docker
+        state: started
+        enabled: True
+      when:
+        - (ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7") or ansible_os_family == 'Debian'
+
+    - name: Jitsi and TURN directories
+      file:
+        path: "/opt/{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0750'
+      with_items:
+        - jitsi
+        - coturn
+
+    - name: Clone the Jitsi Meet Docker Repository
+      git:
+        repo: 'https://github.com/jitsi/docker-jitsi-meet'
+        dest: /opt/jitsi_repo
+
+    - name: Determine if TURN Secret is Set
+      stat:
+        path: /opt/coturn/turn_secret
+      register: turn_secret_file
+
+    - name: Create TURN Secret if not Set
+      shell: |
+        head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 > /opt/coturn/turn_secret
+      when: turn_secret_file.stat.exists|bool == False
+
+    - name: Register TURN Secret
+      shell: |
+        cat /opt/coturn/turn_secret
+      register: turn_secret
+
+    - name: Coturn Dockerfile and Script
+      template:
+        src: "{{ item }}"
+        dest: "/opt/{{ item }}"
+        owner: root
+        group: root
+        mode: '0640'
+      with_items:
+        - 'coturn/Dockerfile'
+        - 'coturn/coturn.sh'
+
+    - name: Build Coturn
+      shell:
+        cmd: docker build -t coturn .
+        chdir: /opt/coturn/
+
+    - name: Run Coturn via Docker
+      docker_container:
+        name: coturn
+        image: coturn
+        network_mode: host
