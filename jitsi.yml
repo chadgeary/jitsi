@@ -2,7 +2,6 @@
 - name: jitsi
   hosts: "{{ target }}"
   gather_facts: true
-  become: true
   tasks:
 
     - name: Set container_command = docker for rhel7/debian
@@ -26,10 +25,31 @@
           - "{% if ansible_os_family == 'RedHat' %}{{ container_command }}{% elif ansible_os_family == 'Debian' %}docker.io{% endif %}"
         state: present
 
+    - name: Determine if Docker daemon.json is default
+      shell:
+        cmd: grep '{}' /etc/docker/daemon.json
+      when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7"
+      ignore_errors: True
+      register: docker_daemon
+
+    - name: Set docker_daemon fact if not RedHat EL7
+      set_fact:
+        docker_daemon.rc == 1
+      when: (ansible_os_family == 'RedHat' and ansible_distribution_major_version != "7") or ansible_os_family == 'Debian'
+
+    - name: Set Docker Daemon Group
+      copy:
+        src: el7.daemon.json
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+      when: docker_daemon.rc == 0
+
     - name: Docker Service
       systemd:
         name: docker
-        state: started
+        state: restarted
         enabled: True
       when:
         - (ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7") or ansible_os_family == 'Debian'
@@ -38,8 +58,8 @@
       file:
         path: "/opt/{{ item }}"
         state: directory
-        owner: root
-        group: root
+        owner: jitsi
+        group: jitsi
         mode: '0750'
       with_items:
         - jitsi
@@ -86,3 +106,101 @@
         name: coturn
         image: coturn
         network_mode: host
+
+    - name: Jitsi User
+      user:
+        name: jitsi
+        state: present
+        home: /opt/jitsi
+        createhome: yes
+      register: jitsi_user
+
+    - name: Jitsi User in dockerroot (CentOS/RHEL 7)
+      user:
+        name: jitsi
+        append: yes
+        groups: dockerroot
+
+    - name: Determine Jitsi First_Run
+      stat:
+        path: /opt/jitsi/first_run
+      register: first_run
+      ignore_errors: True
+
+    - name: Create First_Run if not exists
+      file:
+        path: /opt/jitsi/first_run
+        state: touch
+        owner: jitsi
+        group: jitsi
+        mode: '0400'
+      when: first_run.stat.exists|bool == False
+
+    - name: Sync Jitsi Repo to Jitsi Directory
+      synchronize:
+        src: /opt/jitsi_repo/
+        dest: /opt/jitsi
+      become: yes
+      become_user: jitsi
+      when: first_run.stat.exists|bool == False
+
+    - name: Copy Environment File
+      copy:
+        src: /opt/jitsi/env.example
+        dest: /opt/jitsi/.env
+        owner: jitsi
+        group: jitsi
+        mode: '0440'
+      become: yes
+      become_user: jitsi
+      when: first_run.stat.exists|bool == False
+
+    - name: Generate Passwords
+      shell:
+        cmd: /opt/jitsi/gen-passwords.sh
+        chdir: /opt/jitsi/
+        executable: /bin/bash
+      become: yes
+      become_user: jitsi
+      when: first_run.stat.exists|bool == False
+
+    - name: Create Jitsi subdirectories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: jitsi
+        group: jitsi
+        mode: '0750'
+      with_items:
+        - /opt/jitsi/.jitsi-meet-cfg
+        - /opt/jitsi/.jitsi-meet-cfg/letsencrypt
+        - /opt/jitsi/.jitsi-meet-cfg/transcripts
+        - /opt/jitsi/.jitsi-meet-cfg/prosody
+        - /opt/jitsi/.jitsi-meet-cfg/jicofi
+        - /opt/jitsi/.jitsi-meet-cfg/jvb
+        - /opt/jitsi/.jitsi-meet-cfg/jigasi
+        - /opt/jitsi/.jitsi-meet-cfg/jibri
+
+    - name: Create Jitsi web subdirectory
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: jitsi
+        group: jitsi
+        mode: '0755'
+      with_items:
+        - /opt/jitsi/.jitsi-meet-cfg/web
+
+    - name: Fix jitsi web config dir permission
+      lineinfile:
+        line: "{{ item }}"
+        path: /opt/jitsi/web/Dockerfile
+      with_items:
+        - 'RUN chmod 755 /config'
+
+    - name: Build Jitsi
+      shell:
+        cmd: docker-compose up -d
+        chdir: /opt/jitsi
+      become: yes
+      become_user: jitsi

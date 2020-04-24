@@ -4,7 +4,7 @@ Playbook for installation of Jitsi Meet - a video conferencing service, and an a
 # Requirements
 - One domain name, e.g. jitsi.chadg.net
 - One public IP address.
-- Ports 80, 443 open on any firewalls (or security groups).
+- Ports 80, 443, 3478, and UDP 30000 through 39999 open on any firewalls (or security groups).
 
 # Deploy
 ```
