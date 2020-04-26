@@ -1,5 +1,5 @@
 # Reference
-Playbook for installation of Jitsi Meet - a video conferencing service, and an associated STUN server.
+Playbook for installation of Jitsi Meet - a self-hosted video conferencing service.
 
 # Requirements
 - One domain name, e.g. jitsi.chadg.net
@@ -8,7 +8,7 @@ Playbook for installation of Jitsi Meet - a video conferencing service, and an a
 
 # Deploy
 ```
-# Locally
+# Local example - assuming domain is jitsi.chadg.net
 ansible-playbook jitsi.yml --extra-vars="target=localhost my_domain=chadg.net my_host=jitsi"
 ```
 
