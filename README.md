@@ -22,8 +22,9 @@ sudo ansible-playbook jitsi.yml --extra-vars="target=localhost le_enable=False"
 sudo docker exec -it jitsi_prosody_1 prosodyctl --config /config/prosody.cfg.lua register someuser1 meet.jitsi SomeSecurePass1
 ```
 - Post-installation changes to the .env file require:
-...1. Removing the .jitsi-meet-config directory
-...2. Restarting the containers
+
+   1. Removing the .jitsi-meet-config directory
+   2. Restarting the containers
 
 # See Also
 https://github.com/jitsi/docker-jitsi-meet
