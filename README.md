@@ -1,5 +1,5 @@
 # Reference
-Playbook for installation of Jitsi Meet - a self-hosted video conferencing service.
+Playbook for installation of Jitsi Meet - a self-hosted video conferencing service. Tested with EL7 (CentOS/RHEL 7).
 
 # Requirements
 - One domain name, e.g. jitsi.chadg.net
