@@ -4,14 +4,15 @@ Playbook for installation of Jitsi Meet - a self-hosted video conferencing servi
 # Requirements
 - One domain name, e.g. jitsi.chadg.net
 - One public IP address.
-- Ports 80, 443 open on any firewalls (or security groups). See official docker page for more port information.
-
+- Ports 80 and 443 open (LetsEncrypt)
+- Ports 8000 and 8443 (No HTTP encryption)
+- /opt available for install
 # Deploy
 ```
 # Local example with LetsEncrypt
 sudo ansible-playbook jitsi.yml --extra-vars="target=localhost le_enable=True le_domain=meet.chadg.net le_email=chad@chadg.net"
 
-# No LetsEncrypt
+# Local example (No HTTP encryption)
 sudo ansible-playbook jitsi.yml --extra-vars="target=localhost le_enable=False"
 ```
 

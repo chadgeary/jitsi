@@ -244,6 +244,6 @@
 
     - name: Add Admin User
       shell: |
-        {{ container_command }} exec -it jitsi_prosody_1 prosodyctl --config /config/prosody.cfg.lua register admin meet.jitsi {{ jitsi_admin_pass.stdout }}
+        {{ container_command }} exec jitsi_prosody_1 prosodyctl --config /config/prosody.cfg.lua register admin meet.jitsi {{ jitsi_admin_pass.stdout }}
       become: yes
       become_user: jitsi
