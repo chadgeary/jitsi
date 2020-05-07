@@ -4,7 +4,7 @@
   gather_facts: true
   tasks:
 
-    - name: Set container_command = docker for rhel7/debian
+    - name: Set container_command = docker for el7/debian
       set_fact:
         container_command: docker
       when:
@@ -37,14 +37,16 @@
         docker_daemon.rc == 1
       when: (ansible_os_family == 'RedHat' and ansible_distribution_major_version != "7") or ansible_os_family == 'Debian'
 
-    - name: Set Docker Daemon Group
+    - name: Set Docker Daemon (Group)
       copy:
         src: el7.daemon.json
         dest: /etc/docker/daemon.json
         owner: root
         group: root
         mode: '0644'
+        backup: yes
       when: docker_daemon.rc == 0
+      register: docker_daemon_file
 
     - name: Docker Service
       systemd:
@@ -53,6 +55,7 @@
         enabled: True
       when:
         - (ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7") or ansible_os_family == 'Debian'
+        - docker_daemon_file.changed
 
     - name: Jitsi User
       user:
@@ -62,11 +65,13 @@
         createhome: yes
       register: jitsi_user
 
-    - name: Jitsi User in dockerroot (CentOS/RHEL 7)
+    - name: Jitsi User in dockerroot (EL 7)
       user:
         name: jitsi
         append: yes
         groups: dockerroot
+      when:
+        - (ansible_os_family == 'RedHat' and ansible_distribution_major_version == "7")
 
     - name: Jitsi Directory
       file:
@@ -159,6 +164,41 @@
         path: /opt/jitsi/web/Dockerfile
       with_items:
         - 'RUN chmod 755 /config'
+
+    - name: Lets Encrypt (Optional Flag) - Enable
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '#ENABLE_LETSENCRYPT=1'
+        replace: 'ENABLE_LETSENCRYPT=1'
+      when: le_enable|bool == True
+
+    - name: Lets Encrypt (Optional Flag) - Domain
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '^#LETSENCRYPT_DOMAIN=.*'
+        replace: "LETSENCRYPT_DOMAIN={{ le_domain }}"
+      when: le_enable|bool == True
+
+    - name: Lets Encrypt (Optional Flag) - Email
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '^#LETSENCRYPT_EMAIL=.*'
+        replace: "LETSENCRYPT_EMAIL={{ le_email }}"
+      when: le_enable|bool == True
+
+    - name: Lets Encrypt (Optional Flag) - Web Port 80
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '^HTTP_PORT=.*'
+        replace: 'HTTP_PORT=80'
+      when: le_enable|bool == True
+
+    - name: Lets Encrypt (Optional Flag) - Web Port 443
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '^HTTPS_PORT=.*'
+        replace: 'HTTPS_PORT=443'
+      when: le_enable|bool == True
 
     - name: Build Jitsi
       shell:
