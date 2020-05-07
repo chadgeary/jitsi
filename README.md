@@ -2,8 +2,8 @@
 Playbook for installation of Jitsi Meet - a self-hosted video conferencing service. Tested with EL7 (CentOS/RHEL 7).
 
 # Requirements
-- Ports 80 and 443 open (LetsEncrypt), and domain name/email address.
-- Ports 8000 and 8443 (No HTTP encryption)
+- Ports 80 and 443 open and domain name/email address (if using LetsEncrypt)
+- Ports 8000 and 8443 (if not using LetsEncrypt)
 - /opt available for install
 # Deploy
 ```
