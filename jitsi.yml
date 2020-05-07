@@ -165,6 +165,41 @@
       with_items:
         - 'RUN chmod 755 /config'
 
+    - name: Determine Jitsi Admin Pass Created
+      stat:
+        path: /opt/jitsi/admin_pass
+      register: jitsi_admin_pass_file
+
+    - name: Generate Jitsi Admin Pass
+      shell: |
+        head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20 > /opt/jitsi/admin_pass
+      become: yes
+      become_user: jitsi
+      when: jitsi_admin_pass_file.stat.exists|bool == False
+
+    - name: Register Jitsi Admin Pass
+      shell: |
+        cat /opt/jitsi/admin_pass
+      register: jitsi_admin_pass
+
+    - name: Enable Auth
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '#ENABLE_AUTH=.*'
+        replace: 'ENABLE_AUTH=1'
+
+    - name: Enable Guests
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '#ENABLE_GUESTS=.*'
+        replace: 'ENABLE_GUESTS=1'
+
+    - name: Set Auth Type = Internal
+      replace:
+        path: /opt/jitsi/.env
+        regexp: '#AUTH_TYPE=.*'
+        replace: 'AUTH_TYPE=internal'
+
     - name: Lets Encrypt (Optional Flag) - Enable
       replace:
         path: /opt/jitsi/.env
@@ -204,5 +239,11 @@
       shell:
         cmd: docker-compose up -d
         chdir: /opt/jitsi
+      become: yes
+      become_user: jitsi
+
+    - name: Add Admin User
+      shell: |
+        {{ container_command }} exec -it jitsi_prosody_1 prosodyctl --config /config/prosody.cfg.lua register admin meet.jitsi {{ jitsi_admin_pass.stdout }}
       become: yes
       become_user: jitsi

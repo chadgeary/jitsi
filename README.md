@@ -15,8 +15,15 @@ sudo ansible-playbook jitsi.yml --extra-vars="target=localhost le_enable=True le
 sudo ansible-playbook jitsi.yml --extra-vars="target=localhost le_enable=False"
 ```
 
-# Post-Installation Tasks
-- TODO
+# Post Installation
+- User admin is created with a randomly generated password (see /opt/jitsi/admin_pass)
+- Create additional users via:
+```
+sudo docker exec -it jitsi_prosody_1 prosodyctl --config /config/prosody.cfg.lua register someuser1 meet.jitsi SomeSecurePass1
+```
+- Post-installation changes to the .env file require:
+ - removing the .jitsi-meet-config directory
+ - restarting the containers
 
 # See Also
 https://github.com/jitsi/docker-jitsi-meet
